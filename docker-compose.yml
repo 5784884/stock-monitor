@@ -1,0 +1,56 @@
+
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: stock-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: stock123
+      MYSQL_DATABASE: stock_monitor_db
+      MYSQL_USER: stock_user
+      MYSQL_PASSWORD: stock123
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    networks:
+      - stock-network
+
+  backend:
+    build: .
+    container_name: stock-backend
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/stock_monitor_db?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: stock_user
+      SPRING_DATASOURCE_PASSWORD: stock123
+      TZ: Asia/Shanghai
+    depends_on:
+      - mysql
+    networks:
+      - stock-network
+
+  frontend:
+    build: ./stock-frontend
+    container_name: stock-frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - stock-network
+
+volumes:
+  mysql-data:
+
+networks:
+  stock-network:
+    driver: bridge

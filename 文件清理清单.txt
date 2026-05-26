@@ -1,0 +1,64 @@
+========================================
+股票监控系统 - 文件清理清单
+========================================
+
+【可以删除的文件】
+
+1. 日志文件（临时文件，可删除）：
+   - backend.log
+   - frontend.log
+   - frontend-restart.log
+   - cloudflared.log
+   - cloudflared-backend.log
+   - cloudflared-backend-final.log
+   - cloudflared-final.log
+
+2. 临时配置文件（已有更好的版本）：
+   - start-tunnel.bat （用于固定域名，当前用不到）
+   - cloudflared-config.yml （用于固定域名，当前用不到）
+   - compose.yaml （重复文件，已有 docker-compose.yml）
+
+3. 构建产物（可删除，需要时重新构建）：
+   - build/ 目录（Gradle 构建产物）
+   - target/ 目录（Maven 构建产物）
+   - .gradle/ 目录（Gradle 缓存）
+
+【必须保留的文件】
+
+1. 核心代码：
+   - src/ 目录（后端源代码）
+   - stock-frontend/ 目录（前端源代码）
+
+2. 配置文件：
+   - pom.xml（Maven 配置）
+   - build.gradle（Gradle 配置）
+   - settings.gradle（Gradle 配置）
+   - Dockerfile（Docker 镜像构建）
+   - docker-compose.yml（Docker 编排）
+
+3. 数据库文件：
+   - init.sql（数据库初始化）
+   - migration.sql（数据库迁移）
+
+4. 文档：
+   - README.md（项目说明）
+   - 启动指南.md（启动说明）
+   - 固定公网地址配置.md（域名配置说明）
+   - 客户部署手册-Docker版.md（部署说明）
+
+5. 工具：
+   - cloudflared.exe（内网穿透工具）
+   - gradlew（Gradle 包装器）
+   - start.sh（启动脚本）
+   - 一键启动.bat（自动启动脚本）
+   - 停止服务.bat（停止脚本）
+
+6. IDE 配置：
+   - .idea/ 目录（IntelliJ IDEA 配置，建议保留）
+
+========================================
+建议操作：
+1. 删除所有 .log 文件（可随时重新生成）
+2. 删除 build/ 和 target/ 目录（需要时重新构建）
+3. 保留其他所有文件
+========================================

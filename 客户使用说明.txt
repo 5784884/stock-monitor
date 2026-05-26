@@ -1,0 +1,240 @@
+========================================
+股票监控系统 - 客户使用说明
+========================================
+
+【重要提示】
+每次重启电脑后，公网访问地址会改变，需要重新获取新地址！
+
+========================================
+第一次使用（完整步骤）
+========================================
+
+1. 确保 Docker Desktop 已启动
+   - 双击桌面上的 Docker Desktop 图标
+   - 等待右下角图标变绿（约 1-2 分钟）
+
+2. 启动系统
+   - 按 Win + R，输入 cmd，回车
+   - 输入以下命令：
+     cd C:\code\Stock
+     docker-compose up -d
+   - 等待约 30 秒，看到 "done" 表示成功
+
+3. 启动后端内网穿透
+   - 新开一个命令提示符窗口
+   - 输入：
+     cd C:\code\Stock
+     cloudflared.exe tunnel --url http://localhost:8080 > backend-tunnel.log 2>&1
+   - 保持此窗口打开！
+
+
+4. 获取后端地址
+   - 再开一个命令提示符窗口
+   - 输入：
+     cd C:\code\Stock
+     timeout /t 10 /nobreak
+     findstr "trycloudflare.com" backend-tunnel.log
+   - 复制显示的地址（例如：https://xxx-xxx-xxx.trycloudflare.com）
+
+5. 更新前端配置
+   - 用记事本打开：C:\code\Stock\stock-frontend\.env.production
+   - 将内容改为：
+     VITE_API_BASE_URL=https://你刚才复制的后端地址
+   - 保存文件
+
+6. 重启前端容器
+   - 在命令提示符中输入：
+     cd C:\code\Stock
+     docker-compose restart frontend
+   - 等待 10 秒
+
+7. 启动前端内网穿透
+   - 再开一个命令提示符窗口
+   - 输入：
+     cd C:\code\Stock
+     cloudflared.exe tunnel --url http://localhost:80 > frontend-tunnel.log 2>&1
+   - 保持此窗口打开！
+
+8. 获取前端访问地址
+   - 再开一个命令提示符窗口
+   - 输入：
+     cd C:\code\Stock
+     timeout /t 10 /nobreak
+     findstr "trycloudflare.com" frontend-tunnel.log
+   - 复制显示的地址（例如：https://yyy-yyy-yyy.trycloudflare.com）
+
+9. 分享给用户
+   - 将前端地址发给需要访问的人
+   - 登录账号：admin
+   - 登录密码：admin123
+
+========================================
+每次重启后的快速步骤
+========================================
+
+【注意】每次重启电脑后，地址会变化，需要重新执行以下步骤：
+
+1. 启动 Docker Desktop（等待启动完成）
+
+2. 启动系统
+   cmd 中输入：
+   cd C:\code\Stock
+   docker-compose up -d
+
+3. 启动后端隧道（新窗口）
+   cd C:\code\Stock
+   cloudflared.exe tunnel --url http://localhost:8080 > backend-tunnel.log 2>&1
+   【保持窗口打开】
+
+4. 获取后端地址（新窗口）
+   cd C:\code\Stock
+   timeout /t 10 /nobreak
+   findstr "trycloudflare.com" backend-tunnel.log
+   【复制地址】
+
+5. 更新前端配置
+   记事本打开：C:\code\Stock\stock-frontend\.env.production
+   改为：VITE_API_BASE_URL=https://刚才复制的地址
+   【保存】
+
+6. 重启前端
+   docker-compose restart frontend
+   【等待10秒】
+
+7. 启动前端隧道（新窗口）
+   cd C:\code\Stock
+   cloudflared.exe tunnel --url http://localhost:80 > frontend-tunnel.log 2>&1
+   【保持窗口打开】
+
+8. 获取前端地址（新窗口）
+   cd C:\code\Stock
+   timeout /t 10 /nobreak
+   findstr "trycloudflare.com" frontend-tunnel.log
+   【这就是新的访问地址】
+
+========================================
+停止系统
+========================================
+
+1. 关闭所有 cloudflared 窗口（直接点 X）
+
+2. 停止 Docker 容器
+   cd C:\code\Stock
+   docker-compose down
+
+========================================
+常见问题
+========================================
+
+问题1：无法访问系统
+解决：
+- 检查 Docker Desktop 是否运行（右下角图标是否为绿色）
+- 检查两个 cloudflared 窗口是否都保持打开
+- 按 Ctrl+Shift+R 强制刷新浏览器
+
+问题2：登录失败
+解决：
+- 确认前端配置文件中的后端地址正确
+- 测试后端地址是否可访问（在浏览器打开后端地址）
+- 清除浏览器缓存后重试
+
+问题3：地址无法获取
+解决：
+- 等待更长时间（15-20秒）后再查询
+- 检查网络连接
+- 重启 cloudflared 进程
+
+问题4：Docker 启动失败
+解决：
+- 重启电脑
+- 以管理员身份运行 PowerShell，输入：wsl --install
+- 重新启动 Docker Desktop
+
+========================================
+重要提醒
+========================================
+
+1. 【必须保持窗口打开】
+   - 两个 cloudflared 窗口必须一直开着
+   - 关闭窗口会导致无法访问
+
+2. 【地址会变化】
+   - 每次重启电脑，地址都会改变
+   - 需要重新获取并分享新地址
+
+3. 【配置要更新】
+   - 每次重启必须更新前端配置文件
+   - 否则前端无法连接后端
+
+4. 【顺序很重要】
+   - 必须先获取后端地址
+   - 再更新前端配置
+   - 最后启动前端隧道
+
+========================================
+快捷操作建议
+========================================
+
+建议创建 4 个批处理文件，方便操作：
+
+1. 启动系统.bat
+@echo off
+cd C:\code\Stock
+docker-compose up -d
+pause
+
+2. 启动后端隧道.bat
+@echo off
+cd C:\code\Stock
+cloudflared.exe tunnel --url http://localhost:8080 > backend-tunnel.log 2>&1
+
+3. 启动前端隧道.bat
+@echo off
+cd C:\code\Stock
+cloudflared.exe tunnel --url http://localhost:80 > frontend-tunnel.log 2>&1
+
+4. 获取地址.bat
+@echo off
+cd C:\code\Stock
+echo ========================================
+echo 后端地址：
+timeout /t 2 /nobreak >nul
+findstr "trycloudflare.com" backend-tunnel.log | findstr "https://"
+echo.
+echo ========================================
+echo 前端访问地址：
+timeout /t 2 /nobreak >nul
+findstr "trycloudflare.com" frontend-tunnel.log | findstr "https://"
+echo ========================================
+pause
+
+使用方法：
+1. 双击"启动系统.bat"
+2. 双击"启动后端隧道.bat"（保持打开）
+3. 双击"获取地址.bat"，复制后端地址
+4. 更新前端配置文件
+5. 重启前端：docker-compose restart frontend
+6. 双击"启动前端隧道.bat"（保持打开）
+7. 再次双击"获取地址.bat"，复制前端地址
+
+========================================
+技术支持
+========================================
+
+如遇问题，请提供：
+1. 错误截图
+2. 后端隧道日志：backend-tunnel.log
+3. 前端隧道日志：frontend-tunnel.log
+4. Docker 日志：docker-compose logs
+
+联系方式：[填写你的联系方式]
+
+========================================
+系统信息
+========================================
+
+系统名称：股票监控系统
+版本号：v1.0
+默认账号：admin / admin123
+
+========================================

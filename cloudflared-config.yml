@@ -1,0 +1,14 @@
+tunnel: <你的隧道ID>
+credentials-file: C:\Users\宋\.cloudflared\<你的隧道ID>.json
+
+ingress:
+  # 前端服务
+  - hostname: stock.你的域名.com
+    service: http://localhost:5176
+
+  # 后端API服务
+  - hostname: api.你的域名.com
+    service: http://localhost:8080
+
+  # 默认规则（必须）
+  - service: http_status:404

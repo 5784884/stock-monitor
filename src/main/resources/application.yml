@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: Stock
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/stock_monitor_db?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: stock_user
+    password: stock123
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+  jackson:
+    time-zone: Asia/Shanghai
+    date-format: yyyy-MM-dd HH:mm:ss
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+jwt:
+  secret: StockMonitorSystemSecretKeyForJWT2024MustBeLongerThan256Bits
+  expiration: 86400000
+
+market:
+  api:
+    url: https://vgp-api.2te.cc/api/v1/frontend/message/latest
+    token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3ODAyMTQyOTcsImlhdCI6MTc3OTYwOTQ5NywiaXNzIjoidmdwIiwibWVtYmVySWQiOjE3OSwic3ViIjoibWVtYmVyLWF1dGgiLCJ1c2VybmFtZSI6IjE3NjY2MTk3NDE2In0.VnpfYWj5xmCLo8h-kCAu3CvdZbyB0fOHrmGs8A8MTSg
+
+server:
+  port: 8080
+  address: 0.0.0.0
