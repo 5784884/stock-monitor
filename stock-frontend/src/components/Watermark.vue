@@ -22,14 +22,14 @@ const drawWatermark = () => {
 
   ctx.clearRect(0, 0, width, height)
 
-  ctx.font = '16px Arial'
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.08)'
+  ctx.font = 'bold 18px Arial'
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.12)'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
 
-  const text = '请联系：731899023 215341380'
-  const xGap = 350
-  const yGap = 200
+  const text = '请联系QQ：731899023 / 215341380'
+  const xGap = 400
+  const yGap = 180
 
   ctx.save()
   ctx.rotate(-20 * Math.PI / 180)
