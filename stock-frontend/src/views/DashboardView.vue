@@ -1,5 +1,6 @@
 <template>
   <div class="dashboard-container">
+    <Watermark />
     <el-container>
       <el-header>
         <div class="header-content">
@@ -15,6 +16,9 @@
         <div class="refresh-button-container">
           <el-button @click="loadData" :loading="loading" type="primary" size="default">
             刷新数据
+          </el-button>
+          <el-button @click="showHistory" type="success" size="default">
+            查看历史记录
           </el-button>
         </div>
 
@@ -201,19 +205,217 @@
         </div>
       </el-main>
     </el-container>
+
+    <!-- 历史记录对话框 -->
+    <el-dialog v-model="historyDialogVisible" title="历史记录" width="80%" :close-on-click-modal="false">
+      <el-table :data="historyList" style="width: 100%" v-loading="historyLoading">
+        <el-table-column prop="id" label="ID" width="80" />
+        <el-table-column prop="title" label="标题" width="200" />
+        <el-table-column prop="createTime" label="保存时间" width="180" />
+        <el-table-column prop="clickTimes" label="点击次数" width="120" />
+        <el-table-column label="操作" width="200">
+          <template #default="scope">
+            <el-button size="small" @click="viewHistoryDetail(scope.row)">查看详情</el-button>
+            <el-button size="small" type="danger" @click="deleteHistoryItem(scope.row.id)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-dialog>
+
+    <!-- 历史详情对话框 -->
+    <el-dialog v-model="detailDialogVisible" title="历史数据详情" width="90%" :close-on-click-modal="false">
+      <div v-if="currentHistoryData" class="table-view">
+        <!-- 一进二板块 -->
+        <div v-if="currentHistoryData.FirstToSecondBoard && currentHistoryData.FirstToSecondBoard.length > 0" class="board-section">
+          <h3 class="board-title">一进二 ({{ currentHistoryData.FirstToSecondBoard.length }} 只股票)</h3>
+          <div class="table-container">
+            <table class="stock-table">
+              <thead>
+                <tr>
+                  <th>代码</th>
+                  <th>名称</th>
+                  <th>涨幅(%)</th>
+                  <th>量能</th>
+                  <th>强度</th>
+                  <th>近比</th>
+                  <th>主力净额</th>
+                  <th>昨主力净额</th>
+                  <th>自由市值</th>
+                  <th>涨停原因</th>
+                  <th>个股概念</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(stock, index) in currentHistoryData.FirstToSecondBoard" :key="index">
+                  <td>{{ stock.CODE }}</td>
+                  <td class="stock-name">{{ stock.NAME }}</td>
+                  <td :class="['price-change', parseFloat(stock.ZF) >= 0 ? 'positive' : 'negative']">{{ stock.ZF }}</td>
+                  <td>{{ stock.LN }}</td>
+                  <td>{{ stock.QD }}</td>
+                  <td>{{ stock.JQB }}</td>
+                  <td>{{ stock.ZLJE }}</td>
+                  <td>{{ stock.ZZLJE }}</td>
+                  <td>{{ stock.ZYSZ }}</td>
+                  <td class="reason-cell">{{ stock.ZTYY || '-' }}</td>
+                  <td class="concept-cell">{{ stock.GGGN }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 二板 -->
+        <div v-if="currentHistoryData.SecondBoard && currentHistoryData.SecondBoard.length > 0" class="board-section">
+          <h3 class="board-title">二板 ({{ currentHistoryData.SecondBoard.length }} 只股票)</h3>
+          <div class="table-container">
+            <table class="stock-table">
+              <thead>
+                <tr>
+                  <th>代码</th>
+                  <th>名称</th>
+                  <th>涨幅(%)</th>
+                  <th>封板强度</th>
+                  <th>封单量</th>
+                  <th>封单额</th>
+                  <th>自由市值</th>
+                  <th>涨停原因</th>
+                  <th>个股概念</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(stock, index) in currentHistoryData.SecondBoard" :key="index">
+                  <td>{{ stock.CODE }}</td>
+                  <td class="stock-name">{{ stock.NAME }}</td>
+                  <td :class="['price-change', parseFloat(stock.ZF) >= 0 ? 'positive' : 'negative']">{{ stock.ZF }}</td>
+                  <td>{{ stock.FBQD }}</td>
+                  <td>{{ stock.FDL }}</td>
+                  <td>{{ stock.FDE }}</td>
+                  <td>{{ stock.ZYSZ }}</td>
+                  <td class="reason-cell">{{ stock.ZTYY || '-' }}</td>
+                  <td class="concept-cell">{{ stock.GGGN }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 三板 -->
+        <div v-if="currentHistoryData.ThirdBoard && currentHistoryData.ThirdBoard.length > 0" class="board-section">
+          <h3 class="board-title">三板 ({{ currentHistoryData.ThirdBoard.length }} 只股票)</h3>
+          <div class="table-container">
+            <table class="stock-table">
+              <thead>
+                <tr>
+                  <th>代码</th>
+                  <th>名称</th>
+                  <th>涨幅(%)</th>
+                  <th>封板强度</th>
+                  <th>封单量</th>
+                  <th>封单额</th>
+                  <th>自由市值</th>
+                  <th>涨停原因</th>
+                  <th>个股概念</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(stock, index) in currentHistoryData.ThirdBoard" :key="index">
+                  <td>{{ stock.CODE }}</td>
+                  <td class="stock-name">{{ stock.NAME }}</td>
+                  <td :class="['price-change', parseFloat(stock.ZF) >= 0 ? 'positive' : 'negative']">{{ stock.ZF }}</td>
+                  <td>{{ stock.FBQD }}</td>
+                  <td>{{ stock.FDL }}</td>
+                  <td>{{ stock.FDE }}</td>
+                  <td>{{ stock.ZYSZ }}</td>
+                  <td class="reason-cell">{{ stock.ZTYY || '-' }}</td>
+                  <td class="concept-cell">{{ stock.GGGN }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 昨三板 -->
+        <div v-if="currentHistoryData.YesterdayThirdBoard && currentHistoryData.YesterdayThirdBoard.length > 0" class="board-section">
+          <h3 class="board-title">昨三板 ({{ currentHistoryData.YesterdayThirdBoard.length }} 只股票)</h3>
+          <div class="table-container">
+            <table class="stock-table">
+              <thead>
+                <tr>
+                  <th>代码</th>
+                  <th>名称</th>
+                  <th>涨幅(%)</th>
+                  <th>自由市值</th>
+                  <th>涨停原因</th>
+                  <th>个股概念</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(stock, index) in currentHistoryData.YesterdayThirdBoard" :key="index">
+                  <td>{{ stock.CODE }}</td>
+                  <td class="stock-name">{{ stock.NAME }}</td>
+                  <td :class="['price-change', parseFloat(stock.ZF) >= 0 ? 'positive' : 'negative']">{{ stock.ZF }}</td>
+                  <td>{{ stock.ZYSZ }}</td>
+                  <td class="reason-cell">{{ stock.ZTYY || '-' }}</td>
+                  <td class="concept-cell">{{ stock.GGGN }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 首板 -->
+        <div v-if="currentHistoryData.FirstBoard && currentHistoryData.FirstBoard.length > 0" class="board-section">
+          <h3 class="board-title">首板 ({{ currentHistoryData.FirstBoard.length }} 只股票)</h3>
+          <div class="table-container">
+            <table class="stock-table">
+              <thead>
+                <tr>
+                  <th>代码</th>
+                  <th>名称</th>
+                  <th>涨幅(%)</th>
+                  <th>封板强度</th>
+                  <th>封单量</th>
+                  <th>封单额</th>
+                  <th>自由市值</th>
+                  <th>个股概念</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(stock, index) in currentHistoryData.FirstBoard" :key="index">
+                  <td>{{ stock.CODE }}</td>
+                  <td class="stock-name">{{ stock.NAME }}</td>
+                  <td :class="['price-change', parseFloat(stock.ZF) >= 0 ? 'positive' : 'negative']">{{ stock.ZF }}</td>
+                  <td>{{ stock.FBQD }}</td>
+                  <td>{{ stock.FDL }}</td>
+                  <td>{{ stock.FDE }}</td>
+                  <td>{{ stock.ZYSZ }}</td>
+                  <td class="concept-cell">{{ stock.GGGN }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Loading } from '@element-plus/icons-vue'
 import request from '../utils/request'
+import Watermark from '../components/Watermark.vue'
 
 const router = useRouter()
 const loading = ref(false)
 const marketData = ref(null)
+const historyDialogVisible = ref(false)
+const detailDialogVisible = ref(false)
+const historyList = ref([])
+const historyLoading = ref(false)
+const currentHistoryData = ref(null)
 
 const userInfo = reactive(JSON.parse(localStorage.getItem('userInfo') || '{}'))
 
@@ -227,8 +429,11 @@ const loadData = async () => {
     // 直接使用返回的 jsonData
     if (res.data && res.data.jsonData) {
       marketData.value = res.data.jsonData
+      // 自动保存历史数据
+      await saveMarketData(res.data)
     } else if (res.data) {
       marketData.value = res.data
+      await saveMarketData(res.data)
     } else {
       marketData.value = null
       ElMessage.warning('暂无数据')
@@ -239,6 +444,64 @@ const loadData = async () => {
     marketData.value = null
   } finally {
     loading.value = false
+  }
+}
+
+const saveMarketData = async (data) => {
+  try {
+    await request.post('/api/data/save-market', data)
+    console.log('历史数据已保存')
+  } catch (error) {
+    console.error('保存历史数据失败:', error)
+  }
+}
+
+const showHistory = async () => {
+  historyDialogVisible.value = true
+  await loadHistoryList()
+}
+
+const loadHistoryList = async () => {
+  try {
+    historyLoading.value = true
+    const res = await request.get('/api/data/history-list')
+    historyList.value = res.data || []
+  } catch (error) {
+    console.error('加载历史记录失败:', error)
+    ElMessage.error('加载历史记录失败: ' + (error.message || '未知错误'))
+  } finally {
+    historyLoading.value = false
+  }
+}
+
+const viewHistoryDetail = async (row) => {
+  try {
+    const res = await request.get(`/api/data/history/${row.id}`)
+    if (res.data && res.data.jsonData) {
+      currentHistoryData.value = JSON.parse(res.data.jsonData)
+      detailDialogVisible.value = true
+    }
+  } catch (error) {
+    console.error('加载历史详情失败:', error)
+    ElMessage.error('加载历史详情失败: ' + (error.message || '未知错误'))
+  }
+}
+
+const deleteHistoryItem = async (id) => {
+  try {
+    await ElMessageBox.confirm('确定要删除这条历史记录吗？', '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    await request.delete(`/api/data/history/${id}`)
+    ElMessage.success('删除成功')
+    await loadHistoryList()
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('删除失败:', error)
+      ElMessage.error('删除失败: ' + (error.message || '未知错误'))
+    }
   }
 }
 
@@ -330,6 +593,8 @@ onMounted(() => {
   padding: 20px;
   background: white;
   border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  gap: 10px;
 }
 
 .table-view {

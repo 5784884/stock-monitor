@@ -4,126 +4,153 @@ import cn.hutool.http.HttpRequest;
 import cn.hutool.http.HttpResponse;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
+import com.it.stock.entity.MarketDataHistory;
+import com.it.stock.mapper.MarketDataHistoryMapper;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
+@RequiredArgsConstructor
 public class MarketDataService {
 
-    @Value("${market.api.url:https://vgp-api.2te.cc/api/v1/frontend/message/latest}")
+    private final MarketDataHistoryMapper historyMapper;
+
+    @Value("${market.api.url}")
     private String apiUrl;
 
-    @Value("${market.api.token:}")
+    @Value("${market.api.token}")
     private String apiToken;
+
+    @Value("${market.api.key:vgp_secret_key_2024}")
+    private String apiKey;
+
+    @Value("${market.api.device-id:device_noydyd_mpuo18sn}")
+    private String deviceId;
+
+    @Value("${market.api.login-url}")
+    private String loginUrl;
+
+    @Value("${market.api.username}")
+    private String username;
+
+    @Value("${market.api.password}")
+    private String password;
 
     public Map<String, Object> getLatestMarketData() {
         try {
-            // 发起HTTP请求
-            HttpResponse response = HttpRequest.get(apiUrl)
-                    .header("authorization", "Bearer " + apiToken)
-                    .header("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-                    .execute();
-
-            String responseBody = response.body();
-            JSONObject jsonResponse = JSON.parseObject(responseBody);
-
-            // 解析数据
-            JSONObject data = jsonResponse.getJSONObject("data");
-            if (data == null) {
-                return Collections.emptyMap();
-            }
-
-            JSONObject jsonData = data.getJSONObject("jsonData");
-            if (jsonData == null) {
-                return Collections.emptyMap();
-            }
-
-            // 直接返回原始 jsonData，不进行字段转换
-            Map<String, Object> result = new LinkedHashMap<>();
-            result.put("jsonData", jsonData);
-            result.put("title", data.getString("title"));
-            result.put("clickTimes", data.getInteger("clickTimes"));
-
-            return result;
-
-        } catch (Exception e) {
-            throw new RuntimeException("获取股市数据失败: " + e.getMessage(), e);
+            return fetchData(apiToken);
+        } catch (TokenExpiredException e) {
+            String newToken = login();
+            apiToken = newToken;
+            return fetchData(newToken);
         }
     }
 
-    private Map<String, Object> transformMarketData(JSONObject jsonData) {
-        Map<String, Object> result = new LinkedHashMap<>();
+    public void saveMarketData(Map<String, Object> data) {
+        MarketDataHistory history = new MarketDataHistory();
+        history.setTitle((String) data.get("title"));
+        history.setJsonData(JSON.toJSONString(data.get("jsonData")));
+        history.setClickTimes((Integer) data.get("clickTimes"));
+        history.setCreateTime(LocalDateTime.now());
+        historyMapper.insert(history);
+    }
 
-        // 字段映射关系
-        Map<String, String> sectionMapping = new LinkedHashMap<>();
-        sectionMapping.put("FirstBoard", "首板");
-        sectionMapping.put("SecondBoard", "二板");
-        sectionMapping.put("OneToTwo", "一进二");
-        sectionMapping.put("TwoToThree", "二进三");
-        sectionMapping.put("ThreeToFour", "三进四");
-        sectionMapping.put("FourToFive", "四进五");
-        sectionMapping.put("FiveToSix", "五进六");
-        sectionMapping.put("HighBoard", "高板");
+    public List<MarketDataHistory> getHistoryList() {
+        return historyMapper.selectList(null);
+    }
 
-        // 字段名映射
-        Map<String, String> fieldMapping = new LinkedHashMap<>();
-        fieldMapping.put("MC", "名称");
-        fieldMapping.put("ZF", "涨幅");
-        fieldMapping.put("ZT", "涨停");
-        fieldMapping.put("LB", "连板");
-        fieldMapping.put("FDE", "封单额");
-        fieldMapping.put("FDL", "封单量");
-        fieldMapping.put("HS", "换手");
-        fieldMapping.put("LTS", "流通市值");
-        fieldMapping.put("ZGB", "总股本");
-        fieldMapping.put("HY", "行业");
+    public MarketDataHistory getHistoryById(Long id) {
+        return historyMapper.selectById(id);
+    }
 
-        // 遍历每个板块
-        for (Map.Entry<String, String> entry : sectionMapping.entrySet()) {
-            String originalKey = entry.getKey();
-            String chineseKey = entry.getValue();
+    public void deleteHistory(Long id) {
+        historyMapper.deleteById(id);
+    }
 
-            if (jsonData.containsKey(originalKey)) {
-                Object sectionData = jsonData.get(originalKey);
+    private Map<String, Object> fetchData(String token) {
+        HttpResponse response = HttpRequest.get(apiUrl)
+                .header("Authorization", "Bearer " + token)
+                .header("Device-Id", deviceId)
+                .header("X-Referer-Token", "vgp3-internal-referer-2026")
+                .header("Origin", "http://vgp.2te.cc")
+                .header("Referer", "http://vgp.2te.cc/")
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36")
+                .execute();
 
-                if (sectionData instanceof List) {
-                    List<Map<String, Object>> transformedList = new ArrayList<>();
-
-                    for (Object item : (List<?>) sectionData) {
-                        if (item instanceof Map) {
-                            Map<String, Object> stockData = (Map<String, Object>) item;
-                            Map<String, Object> transformedStock = new LinkedHashMap<>();
-
-                            // 转换字段名
-                            for (Map.Entry<String, String> fieldEntry : fieldMapping.entrySet()) {
-                                String originalField = fieldEntry.getKey();
-                                String chineseField = fieldEntry.getValue();
-
-                                if (stockData.containsKey(originalField)) {
-                                    transformedStock.put(chineseField, stockData.get(originalField));
-                                }
-                            }
-
-                            // 特殊处理：拼接封单额和封单量
-                            if (stockData.containsKey("FDE") && stockData.containsKey("FDL")) {
-                                String fde = String.valueOf(stockData.get("FDE"));
-                                String fdl = String.valueOf(stockData.get("FDL"));
-                                transformedStock.put("封单额|量", fde + " | " + fdl);
-                                transformedStock.remove("封单额");
-                                transformedStock.remove("封单量");
-                            }
-
-                            transformedList.add(transformedStock);
-                        }
-                    }
-
-                    result.put(chineseKey, transformedList);
-                }
-            }
+        JSONObject jsonResponse = JSON.parseObject(response.body());
+        int code = jsonResponse.getIntValue("code");
+        if (code == 401 || "登录已过期，请重新登录".equals(jsonResponse.getString("msg"))) {
+            throw new TokenExpiredException();
+        }
+        if (code != 200) {
+            throw new RuntimeException("接口返回错误: " + jsonResponse.getString("msg"));
         }
 
+        Object dataField = jsonResponse.get("data");
+        JSONObject data;
+        if (dataField instanceof String) {
+            data = JSON.parseObject(decrypt((String) dataField));
+        } else {
+            data = jsonResponse.getJSONObject("data");
+        }
+
+        Object jsonDataField = data.get("jsonData");
+        JSONObject jsonData;
+        if (jsonDataField instanceof String) {
+            jsonData = JSON.parseObject((String) jsonDataField);
+        } else {
+            jsonData = data.getJSONObject("jsonData");
+        }
+
+        if (jsonData == null) {
+            return Collections.emptyMap();
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("jsonData", jsonData);
+        result.put("title", data.getString("title"));
+        result.put("clickTimes", data.getInteger("clickTimes"));
         return result;
     }
+
+    private String login() {
+        JSONObject body = new JSONObject();
+        body.put("username", username);
+        body.put("password", password);
+        body.put("deviceId", deviceId);
+        body.put("remember", false);
+
+        HttpResponse response = HttpRequest.post(loginUrl)
+                .header("Content-Type", "application/json")
+                .header("Device-Id", deviceId)
+                .header("X-Referer-Token", "vgp3-internal-referer-2026")
+                .header("Origin", "http://vgp.2te.cc")
+                .header("Referer", "http://vgp.2te.cc/")
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36")
+                .body(body.toJSONString())
+                .execute();
+
+        JSONObject jsonResponse = JSON.parseObject(response.body());
+        if (jsonResponse.getIntValue("code") != 200) {
+            throw new RuntimeException("登录失败: " + jsonResponse.getString("msg"));
+        }
+        return jsonResponse.getJSONObject("data").getString("token");
+    }
+
+    private String decrypt(String encryptedData) {
+        byte[] raw = Base64.getDecoder().decode(encryptedData);
+        byte[] keyBytes = apiKey.getBytes(StandardCharsets.UTF_8);
+        byte[] decrypted = new byte[raw.length];
+        for (int i = 0; i < raw.length; i++) {
+            decrypted[i] = (byte) (raw[i] ^ keyBytes[i % keyBytes.length]);
+        }
+        return new String(decrypted, StandardCharsets.UTF_8);
+    }
+
+    private static class TokenExpiredException extends RuntimeException {}
 }
